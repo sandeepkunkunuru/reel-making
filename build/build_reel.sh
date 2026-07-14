@@ -61,9 +61,11 @@ if [ "${REUSE_SEGB:-0}" = "1" ] && [ -f "$W/segB.mp4" ]; then
   echo "· reusing existing segB.mp4"
 else
   # If a still image was given instead of a card video, auto-animate it first.
+  SMOOTH=0
   if [ -z "${CARD:-}" ] && [ -n "${CARD_IMAGE:-}" ]; then
     $PY "$HERE/cards/animate_card.py" "$CARD_IMAGE" "$W/card.mp4" --seconds "$((CARD_PLAY+CARD_HOLD))"
     CARD="$W/card.mp4"; CARD_WINDOW=""; CARD_PLAY=$((CARD_PLAY+CARD_HOLD)); CARD_HOLD=0
+    SMOOTH=1   # a Ken-Burns still is already smooth — no motion interpolation needed
   fi
   BDUR=$((CARD_PLAY + CARD_HOLD))
   if [ -n "$CARD_WINDOW" ]; then WIN=(-t "$CARD_WINDOW"); SRC="$CARD_WINDOW"; else \
@@ -72,8 +74,13 @@ else
   MUS_DUR="${MUSIC_DUR:-$BDUR}"
   HOLD_F=""
   [ "$CARD_HOLD" -gt 0 ] && HOLD_F=",tpad=stop_mode=clone:stop_duration=$CARD_HOLD"
+  if [ "${SMOOTH:-0}" = "1" ]; then          # already-smooth still: no interpolation
+    VCHAIN="[0:v]fps=30,scale=1080:1920,setsar=1${HOLD_F},format=yuv420p[v]"
+  else                                       # real card video: motion-interpolate the slow-down
+    VCHAIN="[0:v]minterpolate=fps=120:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1,setpts=$FACTOR*PTS,fps=30,scale=1080:1920,setsar=1${HOLD_F},format=yuv420p[v]"
+  fi
   $FF "${WIN[@]}" -i "$CARD" -ss "$MUSIC_SS" -t "$BDUR" -i "$MUSIC" -filter_complex "
-    [0:v]minterpolate=fps=120:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1,setpts=$FACTOR*PTS,fps=30,scale=1080:1920,setsar=1${HOLD_F},format=yuv420p[v];
+    $VCHAIN;
     [1:a]afade=t=in:st=0:d=1.8,afade=t=out:st=$(awk "BEGIN{print $BDUR-2.0}"):d=2.0,loudnorm=I=-16:TP=-1.5:LRA=11,aformat=sample_rates=48000:channel_layouts=stereo[a]
   " -map "[v]" -map "[a]" -t "$BDUR" -c:v libx264 -crf 19 -preset medium -pix_fmt yuv420p \
     -c:a aac -b:a 192k -movflags +faststart "$W/segB.mp4"
@@ -100,7 +107,8 @@ if [ -n "${LOGO:-}" ]; then
 fi
 
 # ---- Poster thumbnail (a held quote frame near the end) ----
-THUMB_AT="${THUMB_AT:-$(awk "BEGIN{printf \"%.2f\", $SEGA_DUR + $CARD_PLAY + 1}")}"
+DUR_SRC=$($FP -v error -show_entries format=duration -of csv=p=0 "$SRC_V")
+THUMB_AT="${THUMB_AT:-$(awk "BEGIN{printf \"%.2f\", $DUR_SRC - 1.0}")}"
 $FF -ss "$THUMB_AT" -i "$SRC_V" -frames:v 1 -q:v 2 "$thumb"
 echo "· thumbnail: $thumb"
 

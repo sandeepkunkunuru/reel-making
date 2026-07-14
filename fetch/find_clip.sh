@@ -29,9 +29,13 @@ VTT="$(ls "$WORK"/subs*.vtt 2>/dev/null | head -1 || true)"
 
 # Find the cue start time of the line: track the last "HH:MM:SS.mmm -->" seen,
 # emit it when a following text line matches the phrase.
-START=$(awk -v IGNORECASE=1 -v p="$PHRASE" '
+# Normalize both sides (lowercase, punctuation/hyphens -> spaces) so "all-inclusive"
+# matches "all inclusive", quotes/casing differ freely, etc.
+START=$(awk -v p="$PHRASE" '
+  function norm(s){ s=tolower(s); gsub(/[^a-z0-9]+/," ",s); gsub(/^ +| +$/,"",s); return s }
+  BEGIN{ pp=norm(p) }
   /-->/ { split($1,a,":"); t=a[1]*3600+a[2]*60+a[3]; next }
-  index($0,p) { printf "%.3f\n", t; exit }
+  { if (pp!="" && index(norm($0),pp)) { printf "%.3f\n", t; exit } }
 ' "$VTT")
 
 if [ -z "${START:-}" ]; then
@@ -42,7 +46,7 @@ fi
 
 SS=$(awk "BEGIN{s=$START-$PAD; if(s<0)s=0; printf \"%.2f\", s}")
 echo "· found at ${START}s → slicing [$SS, +$DUR]s to $OUT"
-$YTDLP --no-progress --extractor-args "youtube:player_client=$CLIENT" \
+$YTDLP --no-progress --force-overwrites --extractor-args "youtube:player_client=$CLIENT" \
   -f "bv*[height<=1080][ext=mp4]+ba[ext=m4a]/b[height<=1080]" \
   --download-sections "*${SS}-$(awk "BEGIN{printf \"%.2f\", $SS+$DUR}")" \
   -o "$OUT" "$URL"

@@ -49,6 +49,44 @@ and `Pillow`. No cloud services, no editor — everything is a command.
 The **karaoke captions** track the speaker's *actual* word timing (forced alignment
 via faster-whisper), so each word lights up in sync — not an even split.
 
+## Three ways to use it
+
+Pick your level — grab a single part, assemble a reel from parts you have, or hand it
+a quote and walk away.
+
+**1. Get the parts** — each stage is a standalone tool:
+```bash
+fetch/find_clip.sh URL "a spoken line" talk.mp4        # locate + slice a talking clip
+fetch/get_music.sh  URL music.mp3                      # a music bed
+python cards/gen_card.py --quote "…" --out card.png    # a quote-card image
+python cards/animate_card.py card.png card.mp4         # …brought to motion
+python captions/transcribe_words.py talk-16k.wav w.json && \
+python captions/gen_captions.py w.json caps.ass        # word-synced karaoke .ass
+```
+
+**2. Assemble a reel from parts you already have** — describe them in a spec:
+```bash
+cp examples/example.spec.sh my.spec.sh                 # point at your talk / card / music
+build/build_reel.sh my.spec.sh
+```
+
+**3. Make the whole reel from just a quote** — the script finds the clip and the music
+and makes the card itself:
+```bash
+make_reel.sh "The quote you want as a reel."
+# tune via env:  SPEAKER="…"  MUSIC_QUERY="…"  LOGO=logo.png  OUT=out/reel.mp4
+```
+
+### AI mode (optional)
+With the [`claude` CLI](https://github.com/anthropics/claude-code) installed, set
+`AI=1` and Claude reads the candidate clips' subtitles to pick the **best** clip and a
+rich, self-contained passage (instead of the first phrase match) — plus the card's
+accent word:
+```bash
+AI=1 make_reel.sh "The quote you want as a reel."
+```
+Without it, a subtitle phrase-grep heuristic is used.
+
 ## Pipeline
 
 | Stage | Module | What it does |
@@ -57,6 +95,7 @@ via faster-whisper), so each word lights up in sync — not an even split.
 | 2. Captions | [`captions/`](captions/) | Transcribe the cut's audio to word timings → build an ALL-CAPS karaoke `.ass`. |
 | 3. Card | [`cards/`](cards/) | *(optional)* Render & animate a minimal procedural quote card if you don't supply one. |
 | 4. Build | [`build/build_reel.sh`](build/build_reel.sh) | Crop/caption the talk, slow the card under music, crossfade, brand, thumbnail, cover. |
+| ⭐ Drive | [`make_reel.sh`](make_reel.sh) | Quote → reel: runs all of the above; `AI=1` uses [`ai/pick.py`](ai/pick.py) to choose the clip/passage. |
 
 ## Requirements
 
@@ -64,6 +103,7 @@ via faster-whisper), so each word lights up in sync — not an even split.
 - `yt-dlp` (for the `fetch/` helpers)
 - Python 3.10+ with `pip install -r requirements.txt`
 - A sans font for captions (default: DejaVu/Noto, configurable)
+- *(optional)* the [`claude` CLI](https://github.com/anthropics/claude-code) for **AI mode**
 
 ## Quickstart
 
