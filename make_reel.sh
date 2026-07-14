@@ -22,6 +22,7 @@ CLIENT="${YT_CLIENT:-android_vr}"
 SPEAKER="${SPEAKER:-}"
 MUSIC_QUERY="${MUSIC_QUERY:-calm instrumental meditation music}"
 TALK_DUR="${TALK_DUR:-13.5}"
+SENT_BUFFER="${SENT_BUFFER:-4}"   # slice this much extra so build can trim to a full sentence
 
 slug() { echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\+/-/g; s/^-//; s/-$//' | cut -c1-40; }
 SLUG="$(slug "$QUOTE")"
@@ -53,8 +54,9 @@ if [ "${AI:-0}" = "1" ] && command -v "${CLAUDE_BIN:-claude}" >/dev/null 2>&1; t
     ADU=$(printf '%s' "$DEC" | cut -f3); AAC=$(printf '%s' "$DEC" | cut -f4)
     AMO=$(printf '%s' "$DEC" | cut -f5)
     log "AI picked $AID @ ${AST}s for ${ADU}s (accent: ${AAC:-—}, motif: ${AMO:-—})"
-    if bash "$HERE/fetch/slice.sh" "https://www.youtube.com/watch?v=$AID" "$AST" "$ADU" "$WORK/talk.mp4" >/dev/null 2>&1; then
-      TALK="$WORK/talk.mp4"; TALK_DUR="$ADU"; [ -n "$AAC" ] && ACCENT_WORD="$AAC"
+    SLICE_DUR=$(awk "BEGIN{print $ADU+$SENT_BUFFER}")
+    if bash "$HERE/fetch/slice.sh" "https://www.youtube.com/watch?v=$AID" "$AST" "$SLICE_DUR" "$WORK/talk.mp4" >/dev/null 2>&1; then
+      TALK="$WORK/talk.mp4"; TALK_DUR="$SLICE_DUR"; [ -n "$AAC" ] && ACCENT_WORD="$AAC"
       [ -n "$AMO" ] && CARD_MOTIF="$AMO"
     fi
   fi
@@ -63,11 +65,12 @@ fi
 
 # Heuristic fallback: grep a distinctive phrase in each candidate's subtitles.
 if [ -z "$TALK" ]; then
+  SLICE_DUR=$(awk "BEGIN{print $TALK_DUR+$SENT_BUFFER}")
   for id in "${CANDS[@]}"; do
     log "trying candidate $id …"
     if bash "$HERE/fetch/find_clip.sh" "https://www.youtube.com/watch?v=$id" "$PHRASE" \
-          "$WORK/talk.mp4" "$TALK_DUR" 1.5 >/dev/null 2>&1; then
-      TALK="$WORK/talk.mp4"; log "matched in $id"; break
+          "$WORK/talk.mp4" "$SLICE_DUR" 1.5 >/dev/null 2>&1; then
+      TALK="$WORK/talk.mp4"; TALK_DUR="$SLICE_DUR"; log "matched in $id"; break
     fi
   done
 fi
@@ -115,8 +118,7 @@ fi
 SPEC="$WORK/reel.spec.sh"
 cat > "$SPEC" <<EOF
 TALK="$TALK"; TALK_SS=0; TALK_DUR=$TALK_DUR; TALK_CROP=auto
-CARD_IMAGE="$WORK/card.png"; CARD_PLAY=${CARD_PLAY:-13}; CARD_HOLD=${CARD_HOLD:-5}
-CARD_MOTIF="${CARD_MOTIF:-petals}"
+$CARD_LINE
 MUSIC="$WORK/music.mp3"; MUSIC_SS=$BEST_SS
 FONT="${FONT:-/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf}"
 FONT_NAME="${FONT_NAME:-Noto Sans}"; FONT_SIZE=${FONT_SIZE:-92}; ACCENT="${ACCENT:-2FB6F2}"

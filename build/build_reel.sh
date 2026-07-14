@@ -55,7 +55,23 @@ $FF -ss "$TALK_SS" -t "$TALK_DUR" -i "$TALK" -vn -ac 1 -ar 16000 "$W/talk-16k.wa
 $PY "$HERE/captions/transcribe_words.py" "$W/talk-16k.wav" "$W/talk-words.json" --model "${WHISPER_MODEL:-small}"
 $PY "$HERE/captions/gen_captions.py" "$W/talk-words.json" "$W/captions.ass" \
     --font-file "$FONT" --font-name "$FONT_NAME" --font-size "$FONT_SIZE" --sung "$ACCENT"
-AF_OUT=$(awk "BEGIN{printf \"%.2f\", $TALK_DUR-0.6}")
+# Deterministic anti-cutoff: trim the talk to the last COMPLETE sentence (else last
+# clause, else last whole word) so speech never ends mid-phrase.
+TALK_DUR=$($PY - "$W/talk-words.json" "$TALK_DUR" <<'PY'
+import json, sys
+words = json.load(open(sys.argv[1])); cut = float(sys.argv[2])
+if not words: print(f"{cut:.2f}"); sys.exit()
+end_of = lambda cs: [w['end'] for w in words if w['end'] <= cut and w['word'].strip()[-1:] in cs]
+sent, clause = end_of('.!?'), end_of('.!?,;:')
+last = min(words[-1]['end'], cut)
+if sent and sent[-1] >= 0.5 * cut:   eff = sent[-1] + 0.40
+elif clause and clause[-1] >= 0.6 * cut: eff = clause[-1] + 0.35
+else: eff = last + 0.30
+print(f"{min(eff, cut):.2f}")
+PY
+)
+echo "· talk trimmed to last full sentence: ${TALK_DUR}s"
+AF_OUT=$(awk "BEGIN{printf \"%.2f\", $TALK_DUR-0.5}")
 $FF -ss "$TALK_SS" -t "$TALK_DUR" -i "$TALK" -filter_complex "
   [0:v]${CROP},scale=1080:1920:flags=lanczos,unsharp=5:5:0.5:5:5:0.0,subtitles=$W/captions.ass:fontsdir=$FONTSDIR,setsar=1,fps=30,format=yuv420p[v];
   [0:a]afade=t=out:st=${AF_OUT}:d=0.55,aformat=sample_rates=48000:channel_layouts=stereo[a]
