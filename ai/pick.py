@@ -72,9 +72,12 @@ def main():
             "where the speaker best expresses this theme in clear, unbroken speech — "
             "avoid intros, sponsor/branding lines, long pauses, and stretches that are "
             "mostly silence or music.\n\n"
+            "Also choose an animated-card MOTIF whose mood best fits the quote, from "
+            "exactly: petals, leaves, blossom, embers, stars, dust.\n\n"
             "Return ONLY a JSON object, no prose:\n"
             '{"video_id":"<id>","start":<seconds>,"dur":<seconds 12-15>,'
-            '"accent":"<one word from the quote to highlight on the card>"}\n\n'
+            '"accent":"<one word from the quote to highlight on the card>",'
+            '"motif":"<petals|leaves|blossom|embers|stars|dust>"}\n\n'
             "Candidates:\n" + "\n\n".join(blocks) + "\n"
         )
         try:
@@ -88,10 +91,11 @@ def main():
             j = json.loads(m.group(0))
         except Exception:
             sys.exit(4)
-        vid, st, du, ac = j.get("video_id"), j.get("start"), j.get("dur"), j.get("accent", "")
+        vid, st, du = j.get("video_id"), j.get("start"), j.get("dur")
+        ac, mo = j.get("accent", ""), j.get("motif", "")
         if not vid or st is None or not du:
             sys.exit(5)
-        print(f"{vid}\t{float(st):.2f}\t{float(du):.2f}\t{ac}")
+        print(f"{vid}\t{float(st):.2f}\t{float(du):.2f}\t{ac}\t{mo}")
 
 
 if __name__ == "__main__":

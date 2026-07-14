@@ -51,9 +51,11 @@ if [ "${AI:-0}" = "1" ] && command -v "${CLAUDE_BIN:-claude}" >/dev/null 2>&1; t
   if [ -n "$DEC" ]; then
     AID=$(printf '%s' "$DEC" | cut -f1); AST=$(printf '%s' "$DEC" | cut -f2)
     ADU=$(printf '%s' "$DEC" | cut -f3); AAC=$(printf '%s' "$DEC" | cut -f4)
-    log "AI picked $AID @ ${AST}s for ${ADU}s (accent: ${AAC:-—})"
+    AMO=$(printf '%s' "$DEC" | cut -f5)
+    log "AI picked $AID @ ${AST}s for ${ADU}s (accent: ${AAC:-—}, motif: ${AMO:-—})"
     if bash "$HERE/fetch/slice.sh" "https://www.youtube.com/watch?v=$AID" "$AST" "$ADU" "$WORK/talk.mp4" >/dev/null 2>&1; then
       TALK="$WORK/talk.mp4"; TALK_DUR="$ADU"; [ -n "$AAC" ] && ACCENT_WORD="$AAC"
+      [ -n "$AMO" ] && CARD_MOTIF="$AMO"
     fi
   fi
   [ -n "$TALK" ] || log "AI mode: no usable pick — falling back to phrase-grep"
@@ -72,10 +74,13 @@ fi
 [ -n "$TALK" ] || { echo "no usable clip found in any candidate"; exit 2; }
 
 # ── 2. Find & fetch a music bed, pick a fuller section ───────────────────────
-MID="$($YTDLP --extractor-args "youtube:player_client=$CLIENT" \
-  "ytsearch1:${MUSIC_QUERY}" --flat-playlist --print "%(id)s" 2>/dev/null | head -1)"
-[ -n "$MID" ] || { echo "no music found"; exit 3; }
-log "music: $MID"
+# Pull several candidates and pick one at random, so the bed varies run to run
+# (ytsearch1 always returns the same top hit → same audio every time).
+mapfile -t MIDS < <($YTDLP --extractor-args "youtube:player_client=$CLIENT" \
+  "ytsearch12:${MUSIC_QUERY}" --flat-playlist --print "%(id)s" 2>/dev/null)
+[ "${#MIDS[@]}" -gt 0 ] || { echo "no music found"; exit 3; }
+MID="${MIDS[$((RANDOM % ${#MIDS[@]}))]}"
+log "music: $MID (random of ${#MIDS[@]} candidates)"
 bash "$HERE/fetch/get_music.sh" "https://www.youtube.com/watch?v=$MID" "$WORK/music.mp3" >/dev/null 2>&1
 # pick the loudest of a few 18s windows (avoids a bare intro)
 BEST_SS=60; BEST_DB=-99
@@ -96,6 +101,7 @@ SPEC="$WORK/reel.spec.sh"
 cat > "$SPEC" <<EOF
 TALK="$TALK"; TALK_SS=0; TALK_DUR=$TALK_DUR; TALK_CROP=auto
 CARD_IMAGE="$WORK/card.png"; CARD_PLAY=${CARD_PLAY:-13}; CARD_HOLD=${CARD_HOLD:-5}
+CARD_MOTIF="${CARD_MOTIF:-petals}"
 MUSIC="$WORK/music.mp3"; MUSIC_SS=$BEST_SS
 FONT="${FONT:-/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf}"
 FONT_NAME="${FONT_NAME:-Noto Sans}"; FONT_SIZE=${FONT_SIZE:-92}; ACCENT="${ACCENT:-2FB6F2}"

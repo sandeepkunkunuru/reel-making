@@ -36,7 +36,12 @@ base="${OUT%.mp4}"; thumb="${base}-thumb.jpg"
 
 # ---- Segment A: full-bleed talk, CLEAN VOICE + karaoke captions ----
 if [ "$TALK_CROP" = "auto" ]; then
-  CROP="crop='2*trunc(ih*9/16/2)':ih:'(iw-ih*9/16)/2':0"
+  FC="$($PY "$HERE/util/face_crop.py" "$TALK" --ss "$TALK_SS" --dur "$TALK_DUR" 2>/dev/null || true)"
+  if [ -n "$FC" ]; then
+    CROP="crop=$FC"; echo "· face-aware crop: $FC"
+  else
+    CROP="crop='2*trunc(ih*9/16/2)':ih:'(iw-ih*9/16)/2':0"; echo "· no face detected — centered crop"
+  fi
 else
   CROP="crop=$TALK_CROP"
 fi
@@ -63,7 +68,8 @@ else
   # If a still image was given instead of a card video, auto-animate it first.
   SMOOTH=0
   if [ -z "${CARD:-}" ] && [ -n "${CARD_IMAGE:-}" ]; then
-    $PY "$HERE/cards/animate_card.py" "$CARD_IMAGE" "$W/card.mp4" --seconds "$((CARD_PLAY+CARD_HOLD))"
+    $PY "$HERE/cards/animate_card.py" "$CARD_IMAGE" "$W/card.mp4" \
+        --seconds "$((CARD_PLAY+CARD_HOLD))" --motif "${CARD_MOTIF:-petals}"
     CARD="$W/card.mp4"; CARD_WINDOW=""; CARD_PLAY=$((CARD_PLAY+CARD_HOLD)); CARD_HOLD=0
     SMOOTH=1   # a Ken-Burns still is already smooth — no motion interpolation needed
   fi

@@ -2,3 +2,5 @@
 faster-whisper>=1.0
 # Procedural quote-card rendering & text measurement
 Pillow>=10.0
+# Optional: face-aware auto-crop (util/face_crop.py). Safe to omit — falls back to a centered crop.
+# opencv-python-headless>=4.8

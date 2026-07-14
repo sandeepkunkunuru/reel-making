@@ -148,6 +148,12 @@ Key fields:
 - **Cover intro** — chat apps thumbnail the *first frame*; a 1s quote-card cover makes
   the shared preview show the quote.
 
+## Known issues & limitations
+
+Fully-automatic mode makes best-effort choices and has rough edges (e.g. face-aware
+cropping under occlusion/motion). The current list is tracked here:
+**https://github.com/sandeepkunkunuru/reel-making/issues**
+
 ## License
 
 MIT — see [LICENSE](LICENSE). Bring your own clips, music, fonts, and brand assets;
