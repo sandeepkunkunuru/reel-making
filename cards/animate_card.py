@@ -72,7 +72,7 @@ def main():
         "ffmpeg", "-hide_banner", "-y", "-loglevel", "error",
         "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(args.fps), "-i", "-",
         "-vf", "fade=t=in:st=0:d=0.9,format=yuv420p",
-        "-c:v", "libx264", "-crf", "19", "-preset", "medium", "-movflags", "+faststart", args.out,
+        "-c:v", "libx264", "-crf", "16", "-preset", "slow", "-movflags", "+faststart", args.out,
     ], stdin=subprocess.PIPE)
 
     for i in range(N):

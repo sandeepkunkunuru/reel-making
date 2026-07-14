@@ -91,10 +91,25 @@ for off in 30 60 120 180 300; do
 done
 log "music in-point: ${BEST_SS}s (${BEST_DB} dB)"
 
-# ── 3. Generate the quote card (art) ─────────────────────────────────────────
+# ── 3. Make the quote card (art) ─────────────────────────────────────────────
 ACCENT_WORD="${ACCENT_WORD:-$($PY -c "import sys,re; w=[x for x in re.sub(r'[^A-Za-z0-9 ]',' ',sys.argv[1]).split()]; print(max(w,key=len) if w else '')" "$QUOTE")}"
-$PY "$HERE/cards/gen_card.py" --quote "$QUOTE" --accent "$ACCENT_WORD" --out "$WORK/card.png" >/dev/null
-log "card art: $WORK/card.png (accent: $ACCENT_WORD)"
+BSECS=$(( ${CARD_PLAY:-13} + ${CARD_HOLD:-5} ))
+CARD_LINE=""
+# Full-AI design: Claude art-directs + renders a bespoke animated card for the quote.
+if [ "${AI:-0}" = "1" ] && [ "${DESIGN:-1}" = "1" ] && command -v "${CLAUDE_BIN:-claude}" >/dev/null 2>&1; then
+  log "AI design: Claude art-directing + rendering the card…"
+  if $PY "$HERE/ai/design_card.py" "$QUOTE" "$ACCENT_WORD" "$WORK/card.mp4" 1080 1920 "$BSECS" 2>"$WORK/design.err"; then
+    CARD_LINE="CARD=\"$WORK/card.mp4\"; CARD_SMOOTH=1; CARD_PLAY=$BSECS; CARD_HOLD=0"
+    log "AI-designed card ready"
+  else
+    log "AI design failed ($(tail -1 "$WORK/design.err" 2>/dev/null)) — using procedural card"
+  fi
+fi
+if [ -z "$CARD_LINE" ]; then
+  $PY "$HERE/cards/gen_card.py" --quote "$QUOTE" --accent "$ACCENT_WORD" --out "$WORK/card.png" >/dev/null
+  CARD_LINE="CARD_IMAGE=\"$WORK/card.png\"; CARD_PLAY=${CARD_PLAY:-13}; CARD_HOLD=${CARD_HOLD:-5}; CARD_MOTIF=\"${CARD_MOTIF:-petals}\""
+  log "card art: procedural (accent: $ACCENT_WORD, motif: ${CARD_MOTIF:-petals})"
+fi
 
 # ── 4. Build the reel from a generated spec ──────────────────────────────────
 SPEC="$WORK/reel.spec.sh"
