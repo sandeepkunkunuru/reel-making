@@ -1,0 +1,4 @@
+# Word-level forced alignment for karaoke captions
+faster-whisper>=1.0
+# Procedural quote-card rendering & text measurement
+Pillow>=10.0

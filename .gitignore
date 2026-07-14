@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Work / build intermediates
+work/
+*.log
+
+# Generated media (reels, cards, audio) — outputs live outside the repo
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.mp3
+*.m4a
+*.wav
+
+# Generated caption files & word timings
+*.ass
+*-words.json
+
+# OS
+.DS_Store
